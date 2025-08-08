@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+  <title>Captain Stone Project</title>
+  <!-- React and Babel Libraries -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <meta name='viewport' content='width=device-width, initial-scale=1'>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+  
+    const { useState, useEffect } = React;
+  
+    // Header component
+    function Header() {
+      return <header className="header"><h1>Sousa's Library of Cool Books</h1></header>;
+    }
+  
+    // Footer component
+    function Footer() {
+      return <footer className="footer"><p>Library System by Galavardino Sousa</p></footer>;
+    }
+  
+    // Main App component
+    function App() {
+      const [books, setBooks] = useState([]);
+      const [newBook, setNewBook] = useState({
+        title: '',
+        author: '',
+        publisher: '',
+        isbn: '',
+        status: "available"
+      });
+  
+      // Fetch all books from the backend
+      useEffect(() => {
+        fetch('http://localhost:3000/books')
+          .then(response => response.json())
+          .then(data => setBooks(data))
+          .catch(error => console.error('Error fetching books:', error));
+      }, []);
+
+      // Function to handle book checkout
+      const handleCheckout = (id) => {
+      const dueDate = prompt("Enter the due date (e.g., YYYY-MM-DD):");
+      const checkedOutBy = prompt("Enter your name: ");
+
+      if (!dueDate || !checkedOutBy) return;
+
+      fetch(`http://localhost:3000/books/${id}/checkout`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dueDate, checkedOutBy }),
+      })
+        .then((response) => {
+          if (response.ok) return response.json();
+          throw new Error("Failed to check out the book");
+        })
+        .then(() => {
+          alert("Book checked out successfully!");
+          updateBooks();
+        })
+        .catch((err) => console.error("Error checking out book:", err));
+      };
+
+      // Function to handle book check-in
+      const handleCheckIn = async (id) => {
+    try {
+        const response = await axios.put(`http://localhost:3000/books/${id}/checkin`);
+        if (response.status === 200) {
+            alert("Book checked in successfully!");
+            await updateBooks();
+        } else {
+            throw new Error(`Unexpected response status: ${response.status}`);
+        }
+    } catch (error) {
+        console.error("Error checking in book:", error);
+    }
+};
+
+
+      // Function to refresh book list
+      const updateBooks = () => {
+        fetch("http://localhost:3000/books")
+        .then((response) => response.json())
+        .then((data) => setBooks(data))
+        .catch((err) => console.error("Error updating books:", err));
+      };
+  
+      // Handle adding a new book
+      const addBook = () => {
+        fetch('http://localhost:3000/books', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...newBook, status: "available" }),
+        })
+          .then(response => {
+            if (response.ok) return response.json();
+            throw new Error('Failed to add book');
+          })
+          .then(() => {
+            setBooks([...books, { ...newBook, status: "available" }]);
+            setNewBook({ title: '', author: '', publisher: '', isbn: '' });
+          })
+          .catch(error => console.error('Error adding book:', error));
+        };
+  
+      return (
+        <div className="app">
+          <Header />
+          <div className="content">
+            <div className="left-column">
+              <h2>Add a New Book</h2>
+              <input
+                type="text"
+                placeholder="Title"
+                value={newBook.title}
+                onChange={(e) => setNewBook({ ...newBook, title: e.target.value })}
+              />
+              <input
+                type="text"
+                placeholder="Author"
+                value={newBook.author}
+                onChange={(e) => setNewBook({ ...newBook, author: e.target.value })}
+              />
+              <input
+                type="text"
+                placeholder="Publisher"
+                value={newBook.publisher}
+                onChange={(e) => setNewBook({ ...newBook, publisher: e.target.value })}
+              />
+              <input
+                type="text"
+                placeholder="ISBN"
+                value={newBook.isbn}
+                onChange={(e) => setNewBook({ ...newBook, isbn: e.target.value })}
+              />
+  
+              <button onClick={addBook}>Add Book</button>
+            </div>
+
+            <div className="right-column">
+              <h2>Book List</h2>
+              <ul>
+                {books.map((book) => (
+                  <li key={book._id}>
+                    {book.title} by {book.author}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            
+            <div className = "Check-out">
+              <h2>Check Out a Book</h2>
+              <ul>
+                {books.map((book) => (
+                  <li key={book._id}>
+                    <strong>{book.title}</strong> by {book.author} -{" "}
+                    {book.status === "available" ? (
+                      <>
+                        Available
+                        <button onClick={() => handleCheckout(book._id)}>
+                          Check Out
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        Checked out by {book.checkedOutBy || "N/A"}, due: {book.dueDate}
+                        <button onClick={() => handleCheckIn(book._id)}>
+                          Check In
+                        </button>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <Footer />
+        </div>
+      );
+    }
+  
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
+
